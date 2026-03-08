@@ -1,0 +1,20 @@
+[project]
+name = "clearright-server"
+version = "0.1.0"
+description = "ClearRight — Real-Time Legal Rights Navigator powered by Gemini Live API and ADK"
+license = {text = "Apache License 2.0"}
+requires-python = ">=3.11"
+
+dependencies = [
+    "pydantic>=2.11.7",
+    "python-dotenv>=1.1.1",
+    "uvicorn>=0.35.0",
+    "fastapi>=0.116.1",
+    "google-genai>=1.36.0",
+    "google-adk>=1.14.1",
+    "python-multipart>=0.0.20",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
