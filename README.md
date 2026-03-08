@@ -210,6 +210,8 @@ The script automatically:
 
 ```
 clearright/
+├── assets/                        # folder for assets
+│   ├── architecture.svg           # architectural diagram for clearright
 ├── server/                        # FastAPI backend
 │   ├── main.py                    # WebSocket + upload + analysis endpoints
 │   ├── clearright_agent/
