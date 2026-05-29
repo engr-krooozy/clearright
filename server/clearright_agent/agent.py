@@ -10,8 +10,8 @@ genai_config = GenerateContentConfig(
 
 root_agent = Agent(
     name="clara_legal_assistant",
-    model="gemini-2.5-flash-native-audio-latest",
-    description="Clara — a compassionate legal information assistant that helps Americans understand their legal documents and know their rights.",
+    model="gemini-3.1-flash-live-preview",
+    description="Clara — a compassionate legal information assistant that helps people around the world understand their legal documents and know their rights.",
     instruction=AGENT_INSTRUCTION,
     tools=[google_search],
     generate_content_config=genai_config,

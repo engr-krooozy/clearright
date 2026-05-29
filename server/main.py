@@ -84,7 +84,7 @@ async def upload_document(file: UploadFile = File(...)):
         Do not summarize — provide the full text."""
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash",
             contents=[
                 types.Part.from_bytes(data=file_bytes, mime_type=file.content_type),
                 extraction_prompt,
@@ -108,7 +108,7 @@ async def upload_document(file: UploadFile = File(...)):
   "suggested_questions": ["specific question about this document?", "another specific question?", "third question?", "fourth question?"]
 }"""
             analysis_response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.5-flash",
                 contents=[
                     f"Here is the full text of a legal document:\n\n{extracted_text[:8000]}",
                     analysis_prompt,
