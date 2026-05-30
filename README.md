@@ -10,11 +10,11 @@
 
 ## The Problem
 
-**60 million Americans face civil legal crises every year with no representation.**
+**Billions of people worldwide face legal problems every year with no access to affordable help.**
 
 Eviction notices. Debt collection letters. Court summons. Insurance denials. Workplace termination letters.
 
-These documents are confusing by design — dense legal language that most people can't parse. A single lawyer consultation costs $200–500/hr. Legal aid organizations have years-long waitlists.
+These documents are confusing by design — dense legal language that most people can't parse. A single lawyer consultation can cost more than many people earn in a week. Legal aid organisations are overstretched, with long waitlists.
 
 People lose their homes, their wages, and their rights — not because they're wrong, but because they don't understand a letter.
 
@@ -114,7 +114,9 @@ Edit `server/.env` and set your `GOOGLE_API_KEY`:
 GOOGLE_API_KEY=your_google_ai_studio_api_key_here
 APP_NAME=clearright
 AGENT_VOICE=Aoede
-AGENT_LANGUAGE=en-US
+# AGENT_LANGUAGE is optional — leave it unset and the model auto-detects
+# and replies in the user's own language. Set a BCP-47 code (e.g. en-GB,
+# fr-FR, es-ES) only if you want to pin a specific locale.
 ```
 
 ### 3. Run locally
@@ -196,7 +198,7 @@ The script automatically:
 
 ### What Clara can help with
 - Eviction notices and tenant rights
-- Debt collection letters (FDCPA rights)
+- Debt collection letters and your rights to dispute
 - Lease agreement review
 - Court summons and response deadlines
 - Insurance claim denials
@@ -242,26 +244,9 @@ clearright/
 
 ## Legal Disclaimer
 
-ClearRight provides **general legal information** only — not legal advice. Information provided does not constitute legal advice and does not create an attorney-client relationship. For advice specific to your situation, consult a licensed attorney or contact your local legal aid organization.
+ClearRight provides **general legal information** only — not legal advice. Information provided does not constitute legal advice and does not create a lawyer-client relationship. Laws differ by country and region, so for advice specific to your situation, consult a qualified lawyer or a legal aid organisation in your jurisdiction.
 
-**Free legal aid resources:**
-- [LawHelp.org](https://www.lawhelp.org) — Find legal aid by state
-- [LegalServices.org](https://www.lsc.gov/about-lsc/what-legal-aid/get-legal-help) — Legal Services Corporation
-- [ABA Free Legal Answers](https://www.abafreelegalanswers.org)
-
----
-
-## Built for the Gemini Live Agent Challenge
-
-This project was built for the [Gemini Live Agent Challenge](https://geminiliveagentchallenge.devpost.com/) hosted by Google.
-
-**Category:** Live Agents
-
-**Key technologies used:**
-- Gemini Live API — native audio bidi streaming
-- Google Agent Development Kit (ADK)
-- Google Cloud Run
-- Gemini 2.5 Flash — multimodal document processing
-- `google_search` tool — real-time legal grounding
-
-\#GeminiLiveAgentChallenge
+**Finding free legal help:**
+- Search for "legal aid", "pro bono legal help", or "community legal centre" in your country or city
+- Many bar associations, law school clinics, and nonprofit organisations offer free consultations
+- Government justice, ombudsman, and consumer-protection agencies often publish free guidance

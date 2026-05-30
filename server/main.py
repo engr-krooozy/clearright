@@ -156,6 +156,19 @@ async def start_agent_session(user_id: str):
 
     live_request_queue = LiveRequestQueue()
 
+    speech_config = types.SpeechConfig(
+        voice_config=types.VoiceConfig(
+            prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                voice_name=os.getenv("AGENT_VOICE", "Aoede")
+            )
+        ),
+    )
+    # Leave language_code unset by default so the native-audio model auto-detects
+    # and replies in the user's own language. Set AGENT_LANGUAGE to pin a locale.
+    _agent_language = os.getenv("AGENT_LANGUAGE")
+    if _agent_language:
+        speech_config.language_code = _agent_language
+
     run_config = RunConfig(
         streaming_mode="bidi",
         response_modalities=[types.Modality.AUDIO],
@@ -169,14 +182,7 @@ async def start_agent_session(user_id: str):
         ),
         output_audio_transcription=types.AudioTranscriptionConfig(),
         input_audio_transcription=types.AudioTranscriptionConfig(),
-        speech_config=types.SpeechConfig(
-            voice_config=types.VoiceConfig(
-                prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                    voice_name=os.getenv("AGENT_VOICE", "Aoede")
-                )
-            ),
-            language_code=os.getenv("AGENT_LANGUAGE", "en-US"),
-        ),
+        speech_config=speech_config,
     )
 
     live_events = runner.run_live(
