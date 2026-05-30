@@ -12,6 +12,7 @@ export type StructuredAgentEvent = {
   is_partial: boolean;
   turn_complete: boolean;
   parts: EventPart[];
+  timestamp?: number;
   input_transcription?: { text: string; is_final: boolean } | null;
   output_transcription?: { text: string; is_final: boolean } | null;
   interrupted?: boolean | null;

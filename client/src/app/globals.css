@@ -112,3 +112,16 @@ body {
 .orb-ring-slow { animation: orb-ring-expand-slow 2.5s ease-out infinite; }
 .orb-connect { animation: orb-connect 2s linear infinite; }
 .orb-halo { animation: orb-halo-pulse 2s ease-in-out infinite; }
+
+/* Respect users who prefer reduced motion — drop the decorative animation
+   and motion-based scrolling, keep a minimal fade so state changes still read. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

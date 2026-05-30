@@ -3,6 +3,8 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useLiveConnection } from "@/hooks/useLiveConnection";
 import { ConversationPanel } from "@/components/ConversationPanel";
+import { Transcript } from "@/components/Transcript";
+import { Composer } from "@/components/Composer";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { ToastContainer, useToast } from "@/components/Toast";
 import {
@@ -432,6 +434,17 @@ export default function Home() {
     ? "listening"
     : "idle";
 
+  // Screen-reader status — announced politely on key session transitions.
+  const liveStatus = isConnecting
+    ? "Connecting to Clara."
+    : isConnected
+    ? "Session live. Speak or type your question to Clara."
+    : connectionState === "error"
+    ? "Connection error. The session could not be started."
+    : connectionState === "closed"
+    ? "Session ended."
+    : "";
+
   const handleUpload = useCallback(async (file: File) => {
     const id = await uploadDocument(file);
     if (id) {
@@ -442,11 +455,15 @@ export default function Home() {
     return id;
   }, [uploadDocument, addToast]);
 
-  const handleStart = (source: "camera" | "screen") => {
+  const handleStart = async (source: "camera" | "screen") => {
     setShowSourceModal(false);
     setActiveSource(source);
     if (videoRef.current && canvasRef.current) {
-      connect(videoRef.current, canvasRef.current, userId, source, uploadedDoc?.documentId);
+      const error = await connect(videoRef.current, canvasRef.current, userId, source, uploadedDoc?.documentId);
+      if (error) {
+        setActiveSource(null);
+        addToast(error, "error");
+      }
     }
   };
 
@@ -474,6 +491,11 @@ export default function Home() {
       <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
       {showSourceModal && <SourceModal onSelect={handleStart} onClose={() => setShowSourceModal(false)} />}
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
+
+      {/* Screen-reader-only live status announcer */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {liveStatus}
+      </div>
 
       {/* ── Header ── */}
       <header
@@ -644,7 +666,11 @@ export default function Home() {
                 sendTextMessage(q);
               }}
             />
+            <Transcript events={eventLog} docName={uploadedDoc?.name ?? null} />
           </div>
+          {isConnected && (
+            <Composer onSend={(q) => sendTextMessage(q)} disabled={!isConnected} />
+          )}
         </div>
       </main>
 

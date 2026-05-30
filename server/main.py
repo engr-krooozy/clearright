@@ -212,42 +212,50 @@ async def agent_to_client_messaging(websocket: WebSocket, live_events):
                 "output_transcription": None,
             }
 
+            # Both transcriptions arrive via dedicated fields as delta streams,
+            # often on events whose content is None — read them BEFORE the early
+            # return below. content.parts text is the native-audio model's hidden
+            # "thinking" trace, not the spoken words, so it is intentionally
+            # ignored here.
+            if event.input_transcription and event.input_transcription.text:
+                message_to_send["input_transcription"] = {
+                    "text": event.input_transcription.text,
+                    "is_final": bool(event.input_transcription.finished),
+                }
+            if event.output_transcription and event.output_transcription.text:
+                message_to_send["output_transcription"] = {
+                    "text": event.output_transcription.text,
+                    "is_final": bool(event.output_transcription.finished),
+                }
+
             if not event.content:
-                if message_to_send["turn_complete"] or message_to_send["interrupted"]:
+                if (
+                    message_to_send["turn_complete"]
+                    or message_to_send["interrupted"]
+                    or message_to_send["input_transcription"]
+                    or message_to_send["output_transcription"]
+                ):
                     await websocket.send_text(json.dumps(message_to_send))
                 continue
 
-            transcription_text = "".join(
-                part.text for part in event.content.parts if part.text
-            )
+            # Content present → forward Clara's audio and tool calls. The model's
+            # text parts (thinking trace) are deliberately skipped.
+            for part in event.content.parts:
+                if part.inline_data and part.inline_data.mime_type.startswith("audio/pcm"):
+                    encoded_audio = base64.b64encode(part.inline_data.data).decode("ascii")
+                    message_to_send["parts"].append({"type": "audio/pcm", "data": encoded_audio})
 
-            if getattr(event.content, "role", None) == "user":
-                if transcription_text:
-                    message_to_send["input_transcription"] = {
-                        "text": transcription_text,
-                        "is_final": not event.partial,
-                    }
+                elif part.function_call:
+                    message_to_send["parts"].append({
+                        "type": "function_call",
+                        "data": {"name": part.function_call.name, "args": part.function_call.args or {}},
+                    })
 
-            else:  # role == "model" or role is None (native audio model)
-                if transcription_text:
-                    message_to_send["parts"].append({"type": "text", "data": transcription_text})
-
-                for part in event.content.parts:
-                    if part.inline_data and part.inline_data.mime_type.startswith("audio/pcm"):
-                        encoded_audio = base64.b64encode(part.inline_data.data).decode("ascii")
-                        message_to_send["parts"].append({"type": "audio/pcm", "data": encoded_audio})
-
-                    elif part.function_call:
-                        message_to_send["parts"].append({
-                            "type": "function_call",
-                            "data": {"name": part.function_call.name, "args": part.function_call.args or {}},
-                        })
-
-                    elif part.function_response:
-                        message_to_send["parts"].append({
-                            "type": "function_response",
-                            "data": {"name": part.function_response.name, "response": part.function_response.response or {}},
-                        })
+                elif part.function_response:
+                    message_to_send["parts"].append({
+                        "type": "function_response",
+                        "data": {"name": part.function_response.name, "response": part.function_response.response or {}},
+                    })
 
             if (
                 message_to_send["parts"]

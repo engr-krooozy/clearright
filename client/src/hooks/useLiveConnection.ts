@@ -23,6 +23,7 @@ export function useLiveConnection() {
   const micLevelRef = useRef(0);
 
   const agentTextBufferRef = useRef<string>("");
+  const userTextBufferRef = useRef<string>("");
   const wsRef = useRef<WebSocket | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
@@ -40,7 +41,19 @@ export function useLiveConnection() {
   }, []);
 
   const sendTextMessage = useCallback((text: string) => {
-    sendMessage({ mime_type: "text/plain", data: text });
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    sendMessage({ mime_type: "text/plain", data: trimmed });
+    // Mirror the typed/tapped question into the transcript as a "You" turn —
+    // text input never comes back through input_transcription.
+    setEventLog((prev) => [...prev, {
+      id: crypto.randomUUID(),
+      author: "user",
+      is_partial: false,
+      turn_complete: true,
+      timestamp: Date.now(),
+      parts: [{ type: "text", data: trimmed }],
+    }]);
   }, [sendMessage]);
 
   const uploadDocument = useCallback(async (file: File): Promise<string | null> => {
@@ -199,10 +212,6 @@ export function useLiveConnection() {
       ws.onmessage = (event) => {
         const agentEvent = JSON.parse(event.data) as StructuredAgentEvent;
 
-        // DEBUG — remove after diagnosis
-        const debugEvent = { ...agentEvent, parts: agentEvent.parts.map(p => p.type === "audio/pcm" ? { type: "audio/pcm", data: "[AUDIO]" } : p) };
-        console.log("[WS]", JSON.stringify(debugEvent));
-
         // ── Audio playback ──────────────────────────────────────────────────
         const hasAudio = agentEvent.parts.some((p) => p.type === "audio/pcm");
         if (hasAudio) setIsAgentSpeaking(true);
@@ -220,15 +229,25 @@ export function useLiveConnection() {
           }
         }
 
-        // ── User speech transcription → log immediately ─────────────────────
+        // ── User speech → accumulate input-transcription deltas, commit when
+        //    the utterance is final. Like Clara's reply, this arrives as a
+        //    delta stream, not one complete string.
+        if (agentEvent.input_transcription?.text) {
+          userTextBufferRef.current += agentEvent.input_transcription.text;
+        }
         if (agentEvent.input_transcription?.is_final) {
-          setEventLog((prev) => [...prev, {
-            id: crypto.randomUUID(),
-            author: "user",
-            is_partial: false,
-            turn_complete: true,
-            parts: [{ type: "text", data: agentEvent.input_transcription!.text }],
-          }]);
+          const userText = userTextBufferRef.current.trim();
+          if (userText) {
+            setEventLog((prev) => [...prev, {
+              id: crypto.randomUUID(),
+              author: "user",
+              is_partial: false,
+              turn_complete: true,
+              timestamp: Date.now(),
+              parts: [{ type: "text", data: userText }],
+            }]);
+          }
+          userTextBufferRef.current = "";
         }
 
         // ── Tool calls/responses → log immediately (no partial filter) ──────
@@ -241,20 +260,19 @@ export function useLiveConnection() {
             author: "agent",
             is_partial: false,
             turn_complete: false,
+            timestamp: Date.now(),
             parts: toolParts,
           }]);
         }
 
-        // ── Agent text → accumulate partial chunks, commit on turn_complete ─
-        const isThinkingText = (text: string) =>
-          /\*\*[A-Z][^*]+\*\*/.test(text.slice(0, 60));
-        const textChunk = agentEvent.parts
-          .filter((p) => p.type === "text" && !isThinkingText(p.data))
-          .map((p) => p.data)
-          .join("");
-        if (textChunk) agentTextBufferRef.current += textChunk;
+        // ── Clara's reply → accumulate output-transcription deltas, commit on
+        //    turn end. The model's content.parts text is its hidden "thinking"
+        //    trace, so the spoken reply comes only from output_transcription.
+        if (agentEvent.output_transcription?.text) {
+          agentTextBufferRef.current += agentEvent.output_transcription.text;
+        }
 
-        if (agentEvent.turn_complete) {
+        if (agentEvent.turn_complete || agentEvent.interrupted) {
           const fullText = agentTextBufferRef.current.trim();
           if (fullText) {
             setEventLog((prev) => [...prev, {
@@ -262,6 +280,7 @@ export function useLiveConnection() {
               author: "agent",
               is_partial: false,
               turn_complete: true,
+              timestamp: Date.now(),
               parts: [{ type: "text", data: fullText }],
             }]);
           }
@@ -271,9 +290,23 @@ export function useLiveConnection() {
 
       ws.onclose = () => disconnect();
       ws.onerror = () => { setConnectionState("error"); disconnect(); };
+      return null;
     } catch (e) {
       console.error("Connection error:", e);
-      setConnectionState("error");
+      setConnectionState("idle");
+      const name = (e as DOMException)?.name;
+      if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") {
+        return source === "screen"
+          ? "Screen share or microphone access was blocked. Allow access in your browser, then try again."
+          : "Camera and microphone access was blocked. Enable it in your browser's site settings, then try again.";
+      }
+      if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+        return "No microphone or camera was found. Connect a device and try again.";
+      }
+      if (name === "NotReadableError" || name === "TrackStartError") {
+        return "Your camera or microphone is already in use by another app. Close it and try again.";
+      }
+      return "Couldn't start the session. Please check your microphone and camera, then try again.";
     }
   }, [setupAudioRecording, setupAudioPlayback, startVideoFrameCapture]);
 
@@ -297,6 +330,7 @@ export function useLiveConnection() {
     setMicrophoneLevel(0);
     micLevelRef.current = 0;
     agentTextBufferRef.current = "";
+    userTextBufferRef.current = "";
     setConnectionState("closed");
   }, [stopVideoFrameCapture]);
 
